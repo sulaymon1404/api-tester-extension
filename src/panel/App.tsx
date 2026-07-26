@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RequestForm from '@/components/request/RequestForm'
 import ResponseView from '@/components/request/ResponseView'
+import ReplayTabsBar from '@/components/request/ReplayTabsBar'
 import HistoryPanel from '@/components/request/HistoryPanel'
 import NetworkList from './components/NetworkList'
 import { CapturedRequest } from '@/types'
@@ -44,12 +45,12 @@ export default function App() {
         responseHeaders[h.name] = h.value
       })
 
-      rb.setResponse({
+      rb.addCapturedReplay({
         status: entry.status,
         statusText: entry.statusText,
         headers: responseHeaders,
         body,
-        timeMs: entry.timeMs,
+        duration: entry.timeMs,
       })
     })
   }
@@ -142,7 +143,16 @@ export default function App() {
             {rb.error}
           </div>
         )}
-        {rb.response && <ResponseView response={rb.response} />}
+        {rb.replays.length > 0 && (
+          <>
+            <ReplayTabsBar
+              replays={rb.replays}
+              selectedId={rb.selectedReplayId}
+              onSelect={rb.selectReplay}
+            />
+            {rb.selectedReplay && <ResponseView snapshot={rb.selectedReplay} />}
+          </>
+        )}
       </div>
     </div>
   )

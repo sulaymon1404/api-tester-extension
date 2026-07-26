@@ -16,12 +16,26 @@ export interface RequestRecord {
   createdAt: number
 }
 
-export interface ResponseData {
+export interface RequestSnapshot {
+  method: HttpMethod
+  url: string
+  headers: Record<string, string>
+  body: string
+}
+
+export interface ResponseSnapshot {
   status: number
   statusText: string
   headers: Record<string, string>
   body: string
-  timeMs: number
+  duration: number
+}
+
+export interface ReplaySnapshot {
+  id: string
+  createdAt: number
+  request: RequestSnapshot
+  response: ResponseSnapshot
 }
 
 export interface CapturedRequest {

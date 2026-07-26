@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { HeaderPair, HttpMethod, RequestRecord, ResponseData } from '@/types'
+import { HeaderPair, HttpMethod, RequestRecord, ResponseSnapshot } from '@/types'
 import { genId } from '@/lib/id'
 import { loadHistory, saveToHistory } from '@/lib/storage'
-import { filterSendableHeaders } from '@/lib/headers'
+import { executeRequest } from '@/lib/executeRequest'
+import { useReplayStore } from '@/lib/useReplayStore'
 
 const METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']
 
@@ -16,7 +17,7 @@ export function useRequestBuilder() {
   const [headers, setHeaders] = useState<HeaderPair[]>([emptyHeader()])
   const [body, setBody] = useState('')
   const [withCredentials, setWithCredentials] = useState(true)
-  const [response, setResponse] = useState<ResponseData | null>(null)
+  const replayStore = useReplayStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<RequestRecord[]>([])
@@ -55,37 +56,14 @@ export function useRequestBuilder() {
     if (!url) return
     setLoading(true)
     setError(null)
-    setResponse(null)
-
-    // Browsers forbid scripts from setting headers like Cookie/Host/Content-Length
-    // (and HTTP/2 pseudo-headers like :authority) — fetch() throws "Invalid name"
-    // if they're present. Session cookies are attached via `credentials: 'include'`
-    // instead, which lets the browser manage them the normal way.
-    const activeHeaders = filterSendableHeaders(headers.filter((h) => h.enabled && h.key.trim()))
-    const headerRecord = Object.fromEntries(activeHeaders.map((h) => [h.key, h.value]))
-    const started = performance.now()
 
     try {
-      const res = await fetch(url, {
-        method,
-        headers: headerRecord,
-        body: method === 'GET' || method === 'HEAD' ? undefined : body || undefined,
-        credentials: withCredentials ? 'include' : 'omit',
-      })
-      const timeMs = Math.round(performance.now() - started)
-      const text = await res.text()
-      const resHeaders: Record<string, string> = {}
-      res.headers.forEach((value, key) => {
-        resHeaders[key] = value
-      })
-
-      setResponse({
-        status: res.status,
-        statusText: res.statusText,
-        headers: resHeaders,
-        body: text,
-        timeMs,
-      })
+      // Browsers forbid scripts from setting headers like Cookie/Host/Content-Length
+      // (and HTTP/2 pseudo-headers like :authority) — fetch() throws "Invalid name"
+      // if they're present. Session cookies are attached via `credentials: 'include'`
+      // instead, which lets the browser manage them the normal way.
+      const { request, response } = await executeRequest({ method, url, headers, body, withCredentials })
+      replayStore.add({ request, response })
 
       const record: RequestRecord = {
         id: genId(),
@@ -108,7 +86,7 @@ export function useRequestBuilder() {
     setUrl('')
     setHeaders([emptyHeader()])
     setBody('')
-    setResponse(null)
+    replayStore.clear()
     setError(null)
   }
 
@@ -117,7 +95,7 @@ export function useRequestBuilder() {
     setUrl(record.url)
     setHeaders(record.headers.length ? record.headers : [emptyHeader()])
     setBody(record.body)
-    setResponse(null)
+    replayStore.clear()
     setError(null)
   }
 
@@ -134,8 +112,21 @@ export function useRequestBuilder() {
     setUrl(entry.url)
     setHeaders(entry.requestHeaders.length ? entry.requestHeaders : [emptyHeader()])
     setBody(entry.requestBody)
-    setResponse(null)
+    replayStore.clear()
     setError(null)
+  }
+
+  function addCapturedReplay(response: ResponseSnapshot) {
+    const activeHeaders = headers.filter((h) => h.enabled && h.key.trim())
+    replayStore.add({
+      request: {
+        method,
+        url,
+        headers: Object.fromEntries(activeHeaders.map((h) => [h.key, h.value])),
+        body,
+      },
+      response,
+    })
   }
 
   return {
@@ -144,7 +135,10 @@ export function useRequestBuilder() {
     headers,
     body,
     withCredentials,
-    response,
+    replays: replayStore.snapshots,
+    selectedReplayId: replayStore.selectedId,
+    selectedReplay: replayStore.selected,
+    selectReplay: replayStore.select,
     loading,
     error,
     history,
@@ -153,7 +147,7 @@ export function useRequestBuilder() {
     setUrl,
     setBody,
     setWithCredentials,
-    setResponse,
+    addCapturedReplay,
     updateHeader,
     addHeader,
     removeHeader,

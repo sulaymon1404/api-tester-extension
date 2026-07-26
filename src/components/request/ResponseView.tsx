@@ -1,4 +1,4 @@
-import { ResponseData } from '@/types'
+import { ReplaySnapshot } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -17,7 +17,8 @@ function statusVariant(status: number): 'success' | 'warning' | 'destructive' | 
   return 'secondary'
 }
 
-export default function ResponseView({ response }: { response: ResponseData }) {
+export default function ResponseView({ snapshot }: { snapshot: ReplaySnapshot }) {
+  const { response } = snapshot
   return (
     <Card>
       <CardHeader>
@@ -26,7 +27,7 @@ export default function ResponseView({ response }: { response: ResponseData }) {
           <Badge variant={statusVariant(response.status)}>
             {response.status} {response.statusText}
           </Badge>
-          <span className="text-xs text-muted-foreground">{response.timeMs} ms</span>
+          <span className="text-xs text-muted-foreground">{response.duration} ms</span>
         </div>
       </CardHeader>
       <CardContent>
