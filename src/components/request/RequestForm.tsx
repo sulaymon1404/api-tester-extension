@@ -1,3 +1,4 @@
+import { type KeyboardEvent } from 'react'
 import { Plus, X } from 'lucide-react'
 import { HeaderPair, HttpMethod } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -37,6 +38,7 @@ interface Props {
   onBodyChange: (b: string) => void
   onWithCredentialsChange: (v: boolean) => void
   onContentTypeChange: (contentType: string) => void
+  onSubmit: () => void
 }
 
 export default function RequestForm({
@@ -54,8 +56,16 @@ export default function RequestForm({
   onBodyChange,
   onWithCredentialsChange,
   onContentTypeChange,
+  onSubmit,
 }: Props) {
   const bodyDisabled = method === 'GET' || method === 'HEAD'
+
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault()
+      onSubmit()
+    }
+  }
 
   const rawContentType = headers.find((h) => h.key.toLowerCase() === 'content-type')?.value ?? ''
   const matchedType = CONTENT_TYPES.find((c) => c.mime === rawContentType)
@@ -69,7 +79,7 @@ export default function RequestForm({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" onKeyDown={handleKeyDown}>
       <div className="flex gap-2">
         <Select value={method} onValueChange={(v) => onMethodChange(v as HttpMethod)}>
           <SelectTrigger className="w-24 shrink-0">
