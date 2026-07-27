@@ -115,6 +115,9 @@ export default function App() {
           onBodyChange={rb.setBody}
           onWithCredentialsChange={rb.setWithCredentials}
           onContentTypeChange={handleContentTypeChange}
+          onSubmit={() => {
+            if (!rb.loading) rb.sendRequest()
+          }}
         />
 
         <div className="flex gap-2">
