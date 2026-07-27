@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RequestForm from '@/components/request/RequestForm'
 import ResponseView from '@/components/request/ResponseView'
 import ReplayTabsBar from '@/components/request/ReplayTabsBar'
+import CompareView from '@/components/request/CompareView'
 import HistoryPanel from '@/components/request/HistoryPanel'
 import NetworkList from './components/NetworkList'
 import { CapturedRequest } from '@/types'
@@ -15,10 +16,12 @@ import { CapturedRequest } from '@/types'
 export default function App() {
   const rb = useRequestBuilder()
   const [curlPreview, setCurlPreview] = useState<{ text: string; copied: boolean } | null>(null)
+  const [comparing, setComparing] = useState(false)
 
   function handleNewRequest() {
     rb.resetRequest()
     setCurlPreview(null)
+    setComparing(false)
   }
 
   function handleContentTypeChange(contentType: string) {
@@ -37,6 +40,7 @@ export default function App() {
 
   function handleSelectCaptured(entry: CapturedRequest, raw: chrome.devtools.network.Request) {
     rb.loadFromCaptured(entry)
+    setComparing(false)
 
     raw.getContent((content, encoding) => {
       const body = encoding === 'base64' && content ? atob(content) : content ?? ''
@@ -75,7 +79,13 @@ export default function App() {
             forceMount
             className="min-h-0 flex-1 overflow-y-auto data-[state=inactive]:hidden"
           >
-            <HistoryPanel history={rb.history} onSelect={rb.loadFromHistory} />
+            <HistoryPanel
+              history={rb.history}
+              onSelect={(record) => {
+                rb.loadFromHistory(record)
+                setComparing(false)
+              }}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -149,8 +159,19 @@ export default function App() {
               replays={rb.replays}
               selectedId={rb.selectedReplayId}
               onSelect={rb.selectReplay}
+              compareIds={rb.compareIds}
+              onToggleCompare={rb.toggleCompare}
+              onCompare={() => setComparing(true)}
             />
-            {rb.selectedReplay && <ResponseView snapshot={rb.selectedReplay} />}
+            {comparing && rb.comparePair ? (
+              <CompareView
+                before={rb.comparePair[0]}
+                after={rb.comparePair[1]}
+                onClose={() => setComparing(false)}
+              />
+            ) : (
+              rb.selectedReplay && <ResponseView snapshot={rb.selectedReplay} />
+            )}
           </>
         )}
       </div>
